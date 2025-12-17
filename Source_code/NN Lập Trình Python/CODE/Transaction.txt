@@ -1,0 +1,6 @@
+Name: Nguyen Van A
+D 3000
+D 2000
+W 3000
+D 500
+W 1000

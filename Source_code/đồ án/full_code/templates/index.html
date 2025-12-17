@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Phân tích Kẹt xe Tự động</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .folder-result { 
+            border: 1px solid #ccc; 
+            padding: 15px; 
+            margin-bottom: 10px; 
+            background-color: #f9f9f9;
+        }
+        .congested { color: red; font-weight: bold; }
+        .normal { color: green; font-weight: bold; }
+        .error-message { 
+            color: white; 
+            background-color: #dc3545; 
+            padding: 10px; 
+            border-radius: 5px; 
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚦 Phân tích Kẹt xe từ Ảnh (Giám sát Tự động)</h1>
+    <p>Hệ thống đang giám sát thư mục "monitored_folders". Kết quả sẽ tự động cập nhật dưới đây sau khi bạn tạo thư mục con mới và thêm ảnh.</p>
+
+    <div id="results-container">Đang chờ dữ liệu...</div>
+
+    <script>
+        function fetchResults() {
+            fetch('/results')
+                .then(response => {
+                    // **BƯỚC SỬA LỖI 1: KIỂM TRA LỖI HTTP**
+                    if (!response.ok) {
+                        // Nếu status không phải 200 (ví dụ: 500 Internal Server Error)
+                        throw new Error(`Lỗi HTTP: ${response.status} ${response.statusText}. Vui lòng kiểm tra console Python.`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const container = document.getElementById('results-container');
+                    container.innerHTML = '';
+                    
+                    if (Object.keys(data).length === 0) {
+                        container.innerHTML = 'Chưa có thư mục nào được xử lý.';
+                        return;
+                    }
+
+                    // Duyệt qua từng thư mục đã xử lý
+                    for (const folderName in data) {
+                        const folderDiv = document.createElement('div');
+                        folderDiv.className = 'folder-result';
+                        
+                        let html = `<h2>📁 Thư mục: ${folderName}</h2>`;
+                        html += '<ul>';
+
+                        // Duyệt qua từng file trong thư mục
+                        data[folderName].forEach(fileResult => {
+                            const statusClass = fileResult.status === 'Kẹt xe' ? 'congested' : 'normal';
+                            // **BƯỚC SỬA LỖI 2: TRUY CẬP TỔNG SỐ XE AN TOÀN HƠN**
+                            // Đảm bảo Total_Vehicles tồn tại, nếu không có thì hiển thị N/A
+                            const totalVehicles = fileResult.counts && fileResult.counts.Total_Vehicles !== undefined 
+                                                ? fileResult.counts.Total_Vehicles 
+                                                : 'N/A';
+                                                
+                            html += `<li>`;
+                            // Cập nhật hiển thị Tổng xe
+                            html += `<strong>${fileResult.filename}</strong>: <span class="${statusClass}">${fileResult.status}</span> (P: ${fileResult.probability}, Tổng xe: ${totalVehicles})`;
+                            html += `</li>`;
+                        });
+
+                        html += '</ul>';
+                        folderDiv.innerHTML = html;
+                        container.appendChild(folderDiv);
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi fetch kết quả:', error);
+                    // **BƯỚC SỬA LỖI 3: HIỂN THỊ LỖI RÕ RÀNG TRÊN GIAO DIỆN**
+                    document.getElementById('results-container').innerHTML = 
+                        `<div class="error-message">LỖI KẾT NỐI/API! Vui lòng kiểm tra console Python. Chi tiết: ${error.message}</div>`;
+                });
+        }
+
+        // Gọi hàm fetchResults mỗi 5 giây (Polling)
+        fetchResults();
+        setInterval(fetchResults, 5000); 
+    </script>
+</body>
+</html>
